@@ -2,7 +2,7 @@
 
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Sample SFML");
+    sf::RenderWindow window(sf::VideoMode(800, 600), "Helicopter Game");
 
     while (window.isOpen())
     {
