@@ -1,10 +1,10 @@
-Player 292 1
-Sahil Kumar 226 0
-Dev Kumar 112 1
-Player 95 2
-Player 55 1
-Asad Ahmad 46 0
-Dev 46 0
-Gotam Lal 39 2
-Jai Dev 37 1
-Gotam Lal 33 1
+Dev 186 0
+Dolat 129 2
+Dev 106 2
+Dev 100 1
+Dev 97 1
+g 97 1
+Goram 95 2
+Gotam 89 0
+Dev 82 0
+Naveen 82 0

@@ -1,9 +1,13 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <random>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <string>
+#include <memory>
+
+using namespace std;
 
 // Game Constants
 const int WINDOW_WIDTH = 800;
@@ -14,6 +18,8 @@ float OBSTACLE_SPEED = 3.0f;
 int OBSTACLE_FREQUENCY = 150;
 const int MAX_OBSTACLES = 20;
 const int MAX_HIGH_SCORES = 10;
+const float BG_SCROLL_SPEED = 0.5f;
+const int MAX_PARTICLES = 500;
 
 // Game States
 enum GameState {
@@ -23,7 +29,9 @@ enum GameState {
     PLAYING,
     PAUSED,
     GAME_OVER,
-    HIGH_SCORES
+    HIGH_SCORES,
+    TUTORIAL,
+    SETTINGS
 };
 
 // Difficulty Levels
@@ -41,19 +49,45 @@ enum ObstacleType {
     BIRD,
     TREE,
     CLOUD,
+    POWERUP,
     NONE
+};
+
+// Power-up types
+enum PowerUpType {
+    SHIELD,
+    SPEED_BOOST,
+    SCORE_MULTIPLIER,
+    INVINCIBILITY
 };
 
 // High score structure
 struct HighScore {
-    std::string name;
-    int score;
-    Difficulty difficulty;
+    string name;
+    int score = 0;
+    Difficulty difficulty = MEDIUM;
+};
+
+// Game settings
+struct GameSettings {
+    bool soundEnabled = true;
+    bool musicEnabled = true;
+    float soundVolume = 100.f;
+    float musicVolume = 50.f;
 };
 
 HighScore highScores[MAX_HIGH_SCORES];
 int numHighScores = 0;
-std::string currentPlayerName = "Player";
+string currentPlayerName = "Player";
+GameSettings gameSettings;
+
+// Forward declarations
+static void setDifficulty(Difficulty difficulty);
+static void loadHighScores();
+static void saveHighScores();
+static void addHighScore(int score);
+static void loadSettings();
+static void saveSettings();
 
 class Button {
 private:
@@ -65,7 +99,7 @@ private:
 
 public:
     Button(float x, float y, float width, float height,
-        sf::Font& font, std::string btnText,
+        sf::Font& font, string btnText,
         sf::Color idle, sf::Color hover, sf::Color active) {
         shape.setPosition(sf::Vector2f(x, y));
         shape.setSize(sf::Vector2f(width, height));
@@ -75,8 +109,8 @@ public:
         text.setFillColor(sf::Color::White);
         text.setCharacterSize(24);
         text.setPosition(
-            x + (width / 2.f) - text.getLocalBounds().width / 2.f,
-            y + (height / 2.f) - text.getLocalBounds().height / 2.f
+            x + (width / 2.0f) - text.getLocalBounds().width / 2.0f,
+            y + (height / 2.0f) - text.getLocalBounds().height / 2.0f
         );
 
         idleColor = idle;
@@ -86,12 +120,12 @@ public:
         shape.setFillColor(idleColor);
     }
 
-    void draw(sf::RenderWindow& window) {
+    void draw(sf::RenderWindow& window) const {
         window.draw(shape);
         window.draw(text);
     }
 
-    bool isMouseOver(sf::RenderWindow& window) {
+    bool isMouseOver(sf::RenderWindow& window) const {
         sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
         return shape.getGlobalBounds().contains(mousePos);
     }
@@ -109,145 +143,353 @@ public:
     }
 };
 
+struct Particle {
+    sf::Vector2f position;
+    sf::Vector2f velocity;
+    sf::Color color;
+    float lifetime;
+};
+
+class ParticleSystem {
+private:
+    unique_ptr<Particle[]> particles;
+    int activeParticles;
+
+public:
+    ParticleSystem() : particles(make_unique<Particle[]>(MAX_PARTICLES)), activeParticles(0) {}
+
+    void createExplosion(sf::Vector2f position, int count = 50) {
+        for (int i = 0; i < count && activeParticles < MAX_PARTICLES; i++) {
+            particles[activeParticles].position = position;
+            particles[activeParticles].velocity = sf::Vector2f(
+                static_cast<float>(rand() % 100 - 50) / 10.0f,
+                static_cast<float>(rand() % 100 - 50) / 10.0f
+            );
+            particles[activeParticles].color = sf::Color(255, rand() % 255, 0);
+            particles[activeParticles].lifetime = static_cast<float>(rand() % 100) / 100.0f * 2.0f;
+            activeParticles++;
+        }
+    }
+
+    void update(float dt) {
+        for (int i = 0; i < activeParticles; i++) {
+            particles[i].position += particles[i].velocity * dt * 60.0f;
+            particles[i].lifetime -= dt;
+            particles[i].color.a = static_cast<sf::Uint8>(255.0f * (particles[i].lifetime / 2.0f));
+        }
+
+        // Remove dead particles
+        int newActive = 0;
+        for (int i = 0; i < activeParticles; i++) {
+            if (particles[i].lifetime > 0.0f) {
+                particles[newActive++] = particles[i];
+            }
+        }
+        activeParticles = newActive;
+    }
+
+    void draw(sf::RenderWindow& window) const {
+        sf::CircleShape shape(3.0f);
+        for (int i = 0; i < activeParticles; i++) {
+            shape.setPosition(particles[i].position);
+            shape.setFillColor(particles[i].color);
+            window.draw(shape);
+        }
+    }
+};
+
+class Animation {
+private:
+    sf::IntRect frames[10];
+    int frameCount;
+    float frameTime;
+    float currentTime;
+    int currentFrame;
+    bool looping;
+
+public:
+    Animation() : frameCount(0), frameTime(0.1f), currentTime(0.0f), currentFrame(0), looping(true) {}
+
+    void addFrame(sf::IntRect frame) {
+        if (frameCount < 10) {
+            frames[frameCount++] = frame;
+        }
+    }
+
+    void update(float dt) {
+        if (frameCount == 0) return;
+
+        currentTime += dt;
+        if (currentTime >= frameTime) {
+            currentTime = 0.0f;
+            currentFrame++;
+            if (currentFrame >= frameCount) {
+                if (looping) currentFrame = 0;
+                else currentFrame = frameCount - 1;
+            }
+        }
+    }
+
+    sf::IntRect getCurrentFrame() const {
+        if (frameCount == 0) return sf::IntRect();
+        return frames[currentFrame];
+    }
+
+    void setFrameTime(float time) { frameTime = time; }
+    void setLooping(bool loop) { looping = loop; }
+};
+
 class Obstacle {
 public:
     ObstacleType type = NONE;
+    PowerUpType powerType = SHIELD;
     bool active = false;
-    sf::RectangleShape shape;
-    sf::CircleShape leaves; // For trees
-    float yPos = 0;
+    sf::Sprite sprite;
+    Animation animation;
+    float yPos = 0.0f;
 
-    void create(ObstacleType t, float x, float y) {
+    void create(ObstacleType t, float x, float y, sf::Texture& texture) {
         type = t;
         active = true;
         yPos = y;
 
         switch (type) {
         case ROCK:
-            shape.setSize(sf::Vector2f(60, 60));
-            shape.setPosition(x, WINDOW_HEIGHT - 60);
-            shape.setFillColor(sf::Color(139, 69, 19)); // Brown
+            sprite.setTexture(texture);
+            sprite.setTextureRect(sf::IntRect(0, 0, 60, 60));
+            sprite.setPosition(x, static_cast<float>(WINDOW_HEIGHT - 60));
             break;
         case BIRD:
-            shape.setSize(sf::Vector2f(40, 30));
-            shape.setPosition(x, y);
-            shape.setFillColor(sf::Color(255, 165, 0)); // Orange
+            sprite.setTexture(texture);
+            for (int i = 0; i < 4; i++) {
+                animation.addFrame(sf::IntRect(i * 40, 0, 40, 30));
+            }
+            animation.setFrameTime(0.15f);
+            sprite.setPosition(x, y);
             break;
         case TREE:
-            shape.setSize(sf::Vector2f(20, 60)); // Trunk
-            shape.setPosition(x, WINDOW_HEIGHT - 60 - 20);
-            shape.setFillColor(sf::Color(139, 69, 19)); // Brown
-
-            leaves.setRadius(30); // Tree top
-            leaves.setPosition(x - 10, WINDOW_HEIGHT - 60 - 20 - 30);
-            leaves.setFillColor(sf::Color(34, 139, 34)); // Green
+            sprite.setTexture(texture);
+            sprite.setTextureRect(sf::IntRect(0, 0, 20, 60));
+            sprite.setPosition(x, static_cast<float>(WINDOW_HEIGHT - 60 - 20));
             break;
         case CLOUD:
-            shape.setSize(sf::Vector2f(80, 40));
-            shape.setPosition(x, y);
-            shape.setFillColor(sf::Color(240, 240, 240)); // Light gray
+            sprite.setTexture(texture);
+            sprite.setTextureRect(sf::IntRect(0, 0, 80, 40));
+            sprite.setPosition(x, y);
+            break;
+        case POWERUP:
+            sprite.setTexture(texture);
+            powerType = static_cast<PowerUpType>(rand() % 4);
+            sprite.setTextureRect(sf::IntRect(powerType * 30, 0, 30, 30));
+            sprite.setPosition(x, y);
+            for (int i = 0; i < 4; i++) {
+                animation.addFrame(sf::IntRect(powerType * 30 + i * 30, 0, 30, 30));
+            }
+            animation.setFrameTime(0.2f);
             break;
         case NONE:
             break;
         }
     }
 
-    void update() {
+    void update(float dt) {
         if (!active) return;
 
         float speed = OBSTACLE_SPEED;
         if (type == BIRD) speed *= 1.2f;
         if (type == CLOUD) speed *= 0.7f;
+        if (type == POWERUP) speed *= 0.8f;
 
-        shape.move(-speed, 0);
-        if (type == TREE) leaves.move(-speed, 0);
+        sprite.move(-speed, 0.0f);
+
+        if (type == BIRD || type == POWERUP) {
+            animation.update(dt);
+            sprite.setTextureRect(animation.getCurrentFrame());
+        }
     }
 
     void draw(sf::RenderWindow& window) const {
         if (!active) return;
-
-        window.draw(shape);
-        if (type == TREE) window.draw(leaves);
+        window.draw(sprite);
     }
 
     bool isOffScreen() const {
-        return active && (shape.getPosition().x + shape.getSize().x < 0);
+        return active && (sprite.getPosition().x + sprite.getLocalBounds().width < 0.0f);
     }
 
     sf::FloatRect getBounds() const {
-        if (type == TREE) return leaves.getGlobalBounds();
-        return shape.getGlobalBounds();
+        return sprite.getGlobalBounds();
     }
 };
 
 class Helicopter {
 private:
-    sf::RectangleShape body;
-    sf::RectangleShape rotor;
+    sf::Sprite sprite;
+    Animation animation;
     sf::Vector2f velocity;
     float rotationAngle;
+    bool hasShield;
+    bool isInvincible;
+    float powerUpTimer;
+    int scoreMultiplier;
 
 public:
-    Helicopter() {
-        // Initialize helicopter shape
-        body.setSize(sf::Vector2f(50, 20));
-        body.setFillColor(sf::Color::Red);
-        body.setPosition(100, WINDOW_HEIGHT / 2);
-        body.setOrigin(body.getSize().x / 2, body.getSize().y / 2);
+    Helicopter(sf::Texture& texture) :
+        hasShield(false),
+        isInvincible(false),
+        powerUpTimer(0.0f),
+        scoreMultiplier(1) {
+        sprite.setTexture(texture);
+        for (int i = 0; i < 4; i++) {
+            animation.addFrame(sf::IntRect(i * 50, 0, 50, 20));
+        }
+        animation.setFrameTime(0.1f);
+        sprite.setPosition(100.0f, static_cast<float>(WINDOW_HEIGHT) / 2.0f);
+        sprite.setOrigin(25.0f, 10.0f);
 
-        rotor.setSize(sf::Vector2f(60, 5));
-        rotor.setFillColor(sf::Color::White);
-        rotor.setOrigin(rotor.getSize().x / 2, rotor.getSize().y / 2);
-
-        velocity = sf::Vector2f(0, 0);
-        rotationAngle = 0;
+        velocity = sf::Vector2f(0.0f, 0.0f);
+        rotationAngle = 0.0f;
     }
 
     void flap() {
         velocity.y = FLAP_FORCE;
-        rotationAngle = -20; // Tilt up when flapping
+        rotationAngle = -20.0f;
     }
 
-    void update() {
+    void update(float dt) {
         // Apply gravity
         velocity.y += GRAVITY;
 
         // Update position
-        body.move(0, velocity.y);
-        rotor.setPosition(body.getPosition());
+        sprite.move(0.0f, velocity.y);
 
-        // Rotate back to horizontal gradually
-        if (rotationAngle < 0) rotationAngle += 1.0f;
-        else if (velocity.y > 0) rotationAngle = std::min(rotationAngle + 0.5f, 20.0f);
+        // Update animation
+        animation.update(dt);
+        sprite.setTextureRect(animation.getCurrentFrame());
 
-        body.setRotation(rotationAngle);
-        rotor.rotate(10); // Spin the rotor
+        // Rotate based on velocity
+        if (rotationAngle < 0.0f) rotationAngle += 1.0f;
+        else if (velocity.y > 0.0f) rotationAngle = min(rotationAngle + 0.5f, 20.0f);
+
+        sprite.setRotation(rotationAngle);
+
+        // Update power-up timers
+        if (powerUpTimer > 0.0f) {
+            powerUpTimer -= dt;
+            if (powerUpTimer <= 0.0f) {
+                resetPowerUps();
+            }
+        }
 
         // Keep helicopter within screen bounds
-        sf::Vector2f position = body.getPosition();
-        if (position.y < 0) {
-            position.y = 0;
-            velocity.y = 0;
+        sf::Vector2f position = sprite.getPosition();
+        if (position.y < 0.0f) {
+            position.y = 0.0f;
+            velocity.y = 0.0f;
         }
-        else if (position.y > WINDOW_HEIGHT - 50) { // 50 is ground height
-            position.y = WINDOW_HEIGHT - 50;
-            velocity.y = 0;
+        else if (position.y > WINDOW_HEIGHT - 50.0f) {
+            position.y = static_cast<float>(WINDOW_HEIGHT - 50);
+            velocity.y = 0.0f;
         }
-        body.setPosition(position);
+        sprite.setPosition(position);
     }
 
     void draw(sf::RenderWindow& window) const {
-        window.draw(rotor);
-        window.draw(body);
+        window.draw(sprite);
+        if (hasShield) {
+            sf::CircleShape shield(30.0f);
+            shield.setFillColor(sf::Color(0, 0, 255, 100));
+            shield.setOutlineColor(sf::Color::Blue);
+            shield.setOutlineThickness(2.0f);
+            shield.setOrigin(30.0f, 30.0f);
+            shield.setPosition(sprite.getPosition());
+            window.draw(shield);
+        }
     }
 
+    void applyPowerUp(PowerUpType type, float duration = 10.0f) {
+        switch (type) {
+        case SHIELD:
+            hasShield = true;
+            break;
+        case SPEED_BOOST:
+            FLAP_FORCE = -9.0f;
+            break;
+        case SCORE_MULTIPLIER:
+            scoreMultiplier = 2;
+            break;
+        case INVINCIBILITY:
+            isInvincible = true;
+            break;
+        }
+        powerUpTimer = duration;
+    }
+
+    void resetPowerUps() {
+        hasShield = false;
+        isInvincible = false;
+        scoreMultiplier = 1;
+        setDifficulty(currentDifficulty);
+    }
+
+    bool checkCollision(const sf::FloatRect& bounds) const {
+        if (isInvincible) return false;
+        if (hasShield) {
+            sf::FloatRect shieldBounds(
+                sprite.getPosition().x - 30.0f,
+                sprite.getPosition().y - 30.0f,
+                60.0f, 60.0f
+            );
+            return shieldBounds.intersects(bounds);
+        }
+        return sprite.getGlobalBounds().intersects(bounds);
+    }
+
+    int getScoreMultiplier() const { return scoreMultiplier; }
+
     sf::FloatRect getBounds() const {
-        return body.getGlobalBounds();
+        return sprite.getGlobalBounds();
     }
 };
 
-void loadHighScores() {
-    std::ifstream file("highscores.txt");
+class Background {
+private:
+    sf::Texture texture;
+    sf::Sprite sprite1;
+    sf::Sprite sprite2;
+    float offset1;
+    float offset2;
+
+public:
+    Background(const string& filename) : offset1(0.0f), offset2(static_cast<float>(WINDOW_WIDTH)) {
+        if (!texture.loadFromFile(filename)) {
+            cerr << "Failed to load background texture" << endl;
+        }
+        sprite1.setTexture(texture);
+        sprite2.setTexture(texture);
+        sprite1.setPosition(0.0f, 0.0f);
+        sprite2.setPosition(static_cast<float>(WINDOW_WIDTH), 0.0f);
+    }
+
+    void update(float dt) {
+        offset1 -= BG_SCROLL_SPEED * dt * 60.0f;
+        offset2 -= BG_SCROLL_SPEED * dt * 60.0f;
+
+        if (offset1 <= -WINDOW_WIDTH) offset1 = static_cast<float>(WINDOW_WIDTH);
+        if (offset2 <= -WINDOW_WIDTH) offset2 = static_cast<float>(WINDOW_WIDTH);
+
+        sprite1.setPosition(offset1, 0.0f);
+        sprite2.setPosition(offset2, 0.0f);
+    }
+
+    void draw(sf::RenderWindow& window) const {
+        window.draw(sprite1);
+        window.draw(sprite2);
+    }
+};
+
+static void loadHighScores() {
+    ifstream file("highscores.txt");
     if (file.is_open()) {
         numHighScores = 0;
         while (numHighScores < MAX_HIGH_SCORES) {
@@ -256,7 +498,7 @@ void loadHighScores() {
                 >> highScores[numHighScores].score
                 >> difficultyValue;
 
-            if (file.fail()) break;  // Stop if reading fails
+            if (file.fail()) break;
 
             highScores[numHighScores].difficulty = static_cast<Difficulty>(difficultyValue);
             numHighScores++;
@@ -265,8 +507,8 @@ void loadHighScores() {
     }
 }
 
-void saveHighScores() {
-    std::ofstream file("highscores.txt");
+static void saveHighScores() {
+    ofstream file("highscores.txt");
     if (file.is_open()) {
         for (int i = 0; i < numHighScores; i++) {
             file << highScores[i].name << " "
@@ -277,7 +519,7 @@ void saveHighScores() {
     }
 }
 
-void addHighScore(int score) {
+static void addHighScore(int score) {
     if (numHighScores < MAX_HIGH_SCORES) {
         highScores[numHighScores].name = currentPlayerName;
         highScores[numHighScores].score = score;
@@ -299,14 +541,36 @@ void addHighScore(int score) {
         }
     }
 
-    std::sort(highScores, highScores + numHighScores, [](const HighScore& a, const HighScore& b) {
+    sort(highScores, highScores + numHighScores, [](const HighScore& a, const HighScore& b) {
         return a.score > b.score;
         });
 
     saveHighScores();
 }
 
-void setDifficulty(Difficulty difficulty) {
+static void loadSettings() {
+    ifstream file("settings.cfg");
+    if (file.is_open()) {
+        file >> gameSettings.soundEnabled
+            >> gameSettings.musicEnabled
+            >> gameSettings.soundVolume
+            >> gameSettings.musicVolume;
+        file.close();
+    }
+}
+
+static void saveSettings() {
+    ofstream file("settings.cfg");
+    if (file.is_open()) {
+        file << gameSettings.soundEnabled << "\n"
+            << gameSettings.musicEnabled << "\n"
+            << gameSettings.soundVolume << "\n"
+            << gameSettings.musicVolume;
+        file.close();
+    }
+}
+
+static void setDifficulty(Difficulty difficulty) {
     currentDifficulty = difficulty;
     switch (difficulty) {
     case EASY:
@@ -334,29 +598,86 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Helicopter Game");
     window.setFramerateLimit(60);
 
-    // Load font
+    // Load resources
     sf::Font font;
     if (!font.loadFromFile("arial.ttf")) {
-        std::cerr << "Failed to load font. Using default font." << std::endl;
+        cerr << "Failed to load font. Using default font." << endl;
     }
 
-    // Load high scores
+    sf::Texture helicopterTexture;
+    if (!helicopterTexture.loadFromFile("helicopter.png")) {
+        cerr << "Failed to load helicopter texture" << endl;
+    }
+
+    sf::Texture obstacleTexture;
+    if (!obstacleTexture.loadFromFile("obstacles.png")) {
+        cerr << "Failed to load obstacles texture" << endl;
+    }
+
+    sf::Texture powerupTexture;
+    if (!powerupTexture.loadFromFile("powerups.png")) {
+        cerr << "Failed to load powerups texture" << endl;
+    }
+
+    // Load sounds
+    sf::SoundBuffer flapSoundBuffer;
+    sf::SoundBuffer crashSoundBuffer;
+    sf::SoundBuffer powerupSoundBuffer;
+    sf::Music backgroundMusic;
+
+    if (!flapSoundBuffer.loadFromFile("flap.wav")) {
+        cerr << "Failed to load flap sound" << endl;
+    }
+    sf::Sound flapSound(flapSoundBuffer);
+
+    if (!crashSoundBuffer.loadFromFile("crash.wav")) {
+        cerr << "Failed to load crash sound" << endl;
+    }
+    sf::Sound crashSound(crashSoundBuffer);
+
+    if (!powerupSoundBuffer.loadFromFile("powerup.wav")) {
+        cerr << "Failed to load powerup sound" << endl;
+    }
+    sf::Sound powerupSound(powerupSoundBuffer);
+
+    if (!backgroundMusic.openFromFile("background.ogg")) {
+        cerr << "Failed to load background music" << endl;
+    }
+    backgroundMusic.setLoop(true);
+
+    // Load game data
     loadHighScores();
+    loadSettings();
+
+    // Set volumes
+    flapSound.setVolume(gameSettings.soundVolume);
+    crashSound.setVolume(gameSettings.soundVolume);
+    powerupSound.setVolume(gameSettings.soundVolume);
+    backgroundMusic.setVolume(gameSettings.musicVolume);
+
+    if (gameSettings.musicEnabled) {
+        backgroundMusic.play();
+    }
 
     // Game objects
-    Helicopter helicopter;
-    Obstacle obstacles[MAX_OBSTACLES];
+    Helicopter helicopter(helicopterTexture);
+    unique_ptr<Obstacle[]> obstacles = make_unique<Obstacle[]>(MAX_OBSTACLES);
     int activeObstacles = 0;
+    ParticleSystem particles;
+    Background background("background.png");
 
     // Random number generation
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> heightDist(50, WINDOW_HEIGHT - 150);
-    std::uniform_int_distribution<> cloudHeightDist(50, 200);
-    std::uniform_int_distribution<> obstacleTypeDist(0, 3);
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> heightDist(50, WINDOW_HEIGHT - 150);
+    uniform_int_distribution<> cloudHeightDist(50, 200);
+    uniform_int_distribution<> obstacleTypeDist(0, 4);
+    uniform_int_distribution<> powerupDist(0, 100);
 
     // Game state
     GameState gameState = MAIN_MENU;
+    sf::Clock gameClock;
+    float deltaTime = 0.0f;
     int obstacleTimer = 0;
     int score = 0;
     bool gameOver = false;
@@ -369,20 +690,20 @@ int main() {
     titleText.setString("Helicopter Game");
     titleText.setCharacterSize(48);
     titleText.setFillColor(sf::Color::White);
-    titleText.setPosition(WINDOW_WIDTH / 2 - titleText.getLocalBounds().width / 2, 50);
+    titleText.setPosition(WINDOW_WIDTH / 2.0f - titleText.getLocalBounds().width / 2.0f, 50.0f);
 
     sf::Text scoreText;
     scoreText.setFont(font);
     scoreText.setCharacterSize(24);
     scoreText.setFillColor(sf::Color::White);
-    scoreText.setPosition(10, 10);
+    scoreText.setPosition(10.0f, 10.0f);
 
     sf::Text pauseText;
     pauseText.setFont(font);
     pauseText.setString("PAUSED");
     pauseText.setCharacterSize(48);
     pauseText.setFillColor(sf::Color::White);
-    pauseText.setPosition(WINDOW_WIDTH / 2 - pauseText.getLocalBounds().width / 2, 150);
+    pauseText.setPosition(WINDOW_WIDTH / 2.0f - pauseText.getLocalBounds().width / 2.0f, 150.0f);
 
     // Username input elements
     sf::Text namePromptText;
@@ -390,44 +711,49 @@ int main() {
     namePromptText.setString("Enter your name:");
     namePromptText.setCharacterSize(30);
     namePromptText.setFillColor(sf::Color::White);
-    namePromptText.setPosition(WINDOW_WIDTH / 2 - namePromptText.getLocalBounds().width / 2, 200);
+    namePromptText.setPosition(WINDOW_WIDTH / 2.0f - namePromptText.getLocalBounds().width / 2.0f, 200.0f);
 
     sf::Text nameInputText;
     nameInputText.setFont(font);
     nameInputText.setString("");
     nameInputText.setCharacterSize(30);
     nameInputText.setFillColor(sf::Color::White);
-    nameInputText.setPosition(WINDOW_WIDTH / 2 - 100, 250);
+    nameInputText.setPosition(WINDOW_WIDTH / 2.0f - 100.0f, 250.0f);
 
     // Buttons
-    Button playButton(WINDOW_WIDTH / 2 - 100, 200, 200, 50, font, "Play Game",
+    Button playButton(WINDOW_WIDTH / 2.0f - 100.0f, 200.0f, 200.0f, 50.0f, font, "Play Game",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button levelButton(WINDOW_WIDTH / 2 - 100, 270, 200, 50, font, "Game Level",
+    Button scoresButton(WINDOW_WIDTH / 2.0f - 100.0f, 270.0f, 200.0f, 50.0f, font, "High Scores",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button scoresButton(WINDOW_WIDTH / 2 - 100, 340, 200, 50, font, "High Scores",
+    Button settingsButton(WINDOW_WIDTH / 2.0f - 100.0f, 340.0f, 200.0f, 50.0f, font, "Settings",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button exitButton(WINDOW_WIDTH / 2 - 100, 410, 200, 50, font, "Exit Game",
+    Button tutorialButton(WINDOW_WIDTH / 2.0f - 100.0f, 410.0f, 200.0f, 50.0f, font, "How to Play",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button resumeButton(WINDOW_WIDTH / 2 - 100, 200, 200, 50, font, "Resume",
+    Button exitButton(WINDOW_WIDTH / 2.0f - 100.0f, 480.0f, 200.0f, 50.0f, font, "Exit Game",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button easyButton(WINDOW_WIDTH / 2 - 100, 200, 200, 50, font, "Easy",
+    Button resumeButton(WINDOW_WIDTH / 2.0f - 100.0f, 200.0f, 200.0f, 50.0f, font, "Resume",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button mediumButton(WINDOW_WIDTH / 2 - 100, 270, 200, 50, font, "Medium",
+    Button easyButton(WINDOW_WIDTH / 2.0f - 100.0f, 200.0f, 200.0f, 50.0f, font, "Easy",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button hardButton(WINDOW_WIDTH / 2 - 100, 340, 200, 50, font, "Hard",
+    Button mediumButton(WINDOW_WIDTH / 2.0f - 100.0f, 270.0f, 200.0f, 50.0f, font, "Medium",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button backButton(WINDOW_WIDTH / 2 - 100, 410, 200, 50, font, "Back",
+    Button hardButton(WINDOW_WIDTH / 2.0f - 100.0f, 340.0f, 200.0f, 50.0f, font, "Hard",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
-    Button continueButton(WINDOW_WIDTH / 2 - 100, 320, 200, 50, font, "Continue",
+    Button backButton(WINDOW_WIDTH / 2.0f - 100.0f, 410.0f, 200.0f, 50.0f, font, "Back",
+        sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
+    Button continueButton(WINDOW_WIDTH / 2.0f - 100.0f, 320.0f, 200.0f, 50.0f, font, "Continue",
         sf::Color::Blue, sf::Color::Cyan, sf::Color::Green);
 
     // Create initial clouds
     for (int i = 0; i < 5 && activeObstacles < MAX_OBSTACLES; i++) {
-        obstacles[activeObstacles++].create(CLOUD, i * 200, cloudHeightDist(gen));
+        obstacles[activeObstacles++].create(CLOUD, static_cast<float>(i * 200),
+            static_cast<float>(cloudHeightDist(gen)), obstacleTexture);
     }
 
     // Game loop
     while (window.isOpen()) {
+        deltaTime = gameClock.restart().asSeconds();
+
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
@@ -443,7 +769,9 @@ int main() {
                         }
                     }
                     else if (event.text.unicode < 128 && event.text.unicode != '\r') {
-                        playerNameInput += event.text.unicode;
+                        if (playerNameInput.getSize() < 15) {
+                            playerNameInput += static_cast<char>(event.text.unicode);
+                        }
                     }
                     nameInputText.setString(playerNameInput);
                 }
@@ -457,13 +785,20 @@ int main() {
                     else if (gameState == PAUSED) {
                         gameState = PLAYING;
                     }
-                    else if (gameState == USERNAME_INPUT) {
+                    else if (gameState == USERNAME_INPUT || gameState == TUTORIAL ||
+                        gameState == HIGH_SCORES || gameState == SETTINGS) {
                         gameState = MAIN_MENU;
+                    }
+                    else if (gameState == LEVEL_SELECT) {
+                        gameState = USERNAME_INPUT;
                     }
                 }
 
                 if (gameState == PLAYING && event.key.code == sf::Keyboard::Space) {
                     helicopter.flap();
+                    if (gameSettings.soundEnabled) {
+                        flapSound.play();
+                    }
                 }
             }
 
@@ -476,11 +811,14 @@ int main() {
                         playerNameInput = "";
                         nameInputText.setString("");
                     }
-                    else if (levelButton.isMouseOver(window)) {
-                        gameState = LEVEL_SELECT;
-                    }
                     else if (scoresButton.isMouseOver(window)) {
                         gameState = HIGH_SCORES;
+                    }
+                    else if (settingsButton.isMouseOver(window)) {
+                        gameState = SETTINGS;
+                    }
+                    else if (tutorialButton.isMouseOver(window)) {
+                        gameState = TUTORIAL;
                     }
                     else if (exitButton.isMouseOver(window)) {
                         window.close();
@@ -501,9 +839,6 @@ int main() {
                         playerNameInput = "";
                         nameInputText.setString("");
                     }
-                    else if (levelButton.isMouseOver(window)) {
-                        gameState = LEVEL_SELECT;
-                    }
                     else if (scoresButton.isMouseOver(window)) {
                         gameState = HIGH_SCORES;
                     }
@@ -516,7 +851,7 @@ int main() {
                         setDifficulty(EASY);
                         gameState = PLAYING;
                         // Reset game
-                        helicopter = Helicopter();
+                        helicopter = Helicopter(helicopterTexture);
                         for (int i = 0; i < MAX_OBSTACLES; i++) {
                             obstacles[i].active = false;
                         }
@@ -529,7 +864,7 @@ int main() {
                         setDifficulty(MEDIUM);
                         gameState = PLAYING;
                         // Reset game
-                        helicopter = Helicopter();
+                        helicopter = Helicopter(helicopterTexture);
                         for (int i = 0; i < MAX_OBSTACLES; i++) {
                             obstacles[i].active = false;
                         }
@@ -542,7 +877,7 @@ int main() {
                         setDifficulty(HARD);
                         gameState = PLAYING;
                         // Reset game
-                        helicopter = Helicopter();
+                        helicopter = Helicopter(helicopterTexture);
                         for (int i = 0; i < MAX_OBSTACLES; i++) {
                             obstacles[i].active = false;
                         }
@@ -552,7 +887,7 @@ int main() {
                         gameOver = false;
                     }
                     else if (backButton.isMouseOver(window)) {
-                        gameState = MAIN_MENU;
+                        gameState = USERNAME_INPUT;
                     }
                 }
                 else if (gameState == HIGH_SCORES) {
@@ -570,20 +905,46 @@ int main() {
                         gameState = MAIN_MENU;
                     }
                 }
+                else if (gameState == TUTORIAL) {
+                    if (backButton.isMouseOver(window)) {
+                        gameState = MAIN_MENU;
+                    }
+                }
+                else if (gameState == SETTINGS) {
+                    if (backButton.isMouseOver(window)) {
+                        gameState = MAIN_MENU;
+                        saveSettings();
+                    }
+                }
             }
         }
 
         // Update
         if (gameState == PLAYING && !gameOver) {
-            helicopter.update();
+            background.update(deltaTime);
+            helicopter.update(deltaTime);
+            particles.update(deltaTime);
 
+            // Spawn obstacles
             if (++obstacleTimer >= OBSTACLE_FREQUENCY && activeObstacles < MAX_OBSTACLES) {
-                ObstacleType type = static_cast<ObstacleType>(obstacleTypeDist(gen));
-                float y = (type == ROCK || type == TREE) ? 0 : heightDist(gen);
+                ObstacleType type;
+                if (powerupDist(gen) < 5) { // 5% chance for power-up
+                    type = POWERUP;
+                }
+                else {
+                    type = static_cast<ObstacleType>(obstacleTypeDist(gen) % 4); // 0-3 for regular obstacles
+                }
+
+                float y = (type == ROCK || type == TREE) ? 0.0f : static_cast<float>(heightDist(gen));
 
                 for (int i = 0; i < MAX_OBSTACLES; i++) {
                     if (!obstacles[i].active) {
-                        obstacles[i].create(type, WINDOW_WIDTH, y);
+                        if (type == POWERUP) {
+                            obstacles[i].create(type, static_cast<float>(WINDOW_WIDTH), y, powerupTexture);
+                        }
+                        else {
+                            obstacles[i].create(type, static_cast<float>(WINDOW_WIDTH), y, obstacleTexture);
+                        }
                         activeObstacles++;
                         break;
                     }
@@ -591,16 +952,46 @@ int main() {
                 obstacleTimer = 0;
             }
 
+            // Update obstacles and check collisions
             for (int i = 0; i < MAX_OBSTACLES; i++) {
                 if (!obstacles[i].active) continue;
 
-                obstacles[i].update();
+                obstacles[i].update(deltaTime);
 
-                if (obstacles[i].type != CLOUD &&
-                    helicopter.getBounds().intersects(obstacles[i].getBounds())) {
-                    gameOver = true;
-                    gameState = GAME_OVER;
-                    addHighScore(score / 10);
+                if (obstacles[i].type != CLOUD) {
+                    if (obstacles[i].type == POWERUP) {
+                        if (helicopter.getBounds().intersects(obstacles[i].getBounds())) {
+                            obstacles[i].active = false;
+                            activeObstacles--;
+                            helicopter.applyPowerUp(obstacles[i].powerType);
+                            if (gameSettings.soundEnabled) {
+                                powerupSound.play();
+                            }
+                            particles.createExplosion(
+                                sf::Vector2f(
+                                    obstacles[i].getBounds().left + obstacles[i].getBounds().width / 2.0f,
+                                    obstacles[i].getBounds().top + obstacles[i].getBounds().height / 2.0f
+                                ),
+                                30
+                            );
+                        }
+                    }
+                    else if (helicopter.checkCollision(obstacles[i].getBounds())) {
+                        gameOver = true;
+                        gameState = GAME_OVER;
+                        addHighScore(score / 10);
+                        if (gameSettings.soundEnabled) {
+                            crashSound.play();
+                        }
+                        particles.createExplosion(
+                            sf::Vector2f(
+                                helicopter.getBounds().left + helicopter.getBounds().width / 2.0f,
+                                helicopter.getBounds().top + helicopter.getBounds().height / 2.0f
+                            ),
+                            100
+                        );
+                        backgroundMusic.stop();
+                    }
                 }
 
                 if (obstacles[i].isOffScreen()) {
@@ -609,14 +1000,15 @@ int main() {
                 }
             }
 
-            score++;
+            score += helicopter.getScoreMultiplier();
         }
 
         // Update buttons based on current state
         if (gameState == MAIN_MENU) {
             playButton.update(window);
-            levelButton.update(window);
             scoresButton.update(window);
+            settingsButton.update(window);
+            tutorialButton.update(window);
             exitButton.update(window);
         }
         else if (gameState == USERNAME_INPUT) {
@@ -625,7 +1017,6 @@ int main() {
         else if (gameState == PAUSED) {
             resumeButton.update(window);
             playButton.update(window);
-            levelButton.update(window);
             scoresButton.update(window);
             exitButton.update(window);
         }
@@ -635,7 +1026,7 @@ int main() {
             hardButton.update(window);
             backButton.update(window);
         }
-        else if (gameState == HIGH_SCORES) {
+        else if (gameState == HIGH_SCORES || gameState == TUTORIAL || gameState == SETTINGS) {
             backButton.update(window);
         }
         else if (gameState == GAME_OVER) {
@@ -647,9 +1038,12 @@ int main() {
         window.clear(sf::Color(135, 206, 235)); // Sky blue
 
         if (gameState == PLAYING || gameState == PAUSED || gameState == GAME_OVER) {
+            // Draw background
+            background.draw(window);
+
             // Draw ground
-            sf::RectangleShape ground(sf::Vector2f(WINDOW_WIDTH, 50));
-            ground.setPosition(0, WINDOW_HEIGHT - 50);
+            sf::RectangleShape ground(sf::Vector2f(static_cast<float>(WINDOW_WIDTH), 50.0f));
+            ground.setPosition(0.0f, static_cast<float>(WINDOW_HEIGHT - 50));
             ground.setFillColor(sf::Color(34, 139, 34)); // Green
             window.draw(ground);
 
@@ -667,19 +1061,24 @@ int main() {
                 }
             }
 
+            // Draw particles
+            particles.draw(window);
+
             // Draw helicopter
             helicopter.draw(window);
 
             // Draw UI
-            scoreText.setString("Score: " + std::to_string(score / 10) + " - " + currentPlayerName);
+            scoreText.setString("Score: " + to_string(score / 10) + " - " + currentPlayerName +
+                " (x" + to_string(helicopter.getScoreMultiplier()) + ")");
             window.draw(scoreText);
         }
 
         if (gameState == MAIN_MENU) {
             window.draw(titleText);
             playButton.draw(window);
-            levelButton.draw(window);
             scoresButton.draw(window);
+            settingsButton.draw(window);
+            tutorialButton.draw(window);
             exitButton.draw(window);
         }
         else if (gameState == USERNAME_INPUT) {
@@ -690,15 +1089,15 @@ int main() {
             title.setString("Enter Player Name");
             title.setCharacterSize(48);
             title.setFillColor(sf::Color::White);
-            title.setPosition(WINDOW_WIDTH / 2 - title.getLocalBounds().width / 2, 100);
+            title.setPosition(WINDOW_WIDTH / 2.0f - title.getLocalBounds().width / 2.0f, 100.0f);
             window.draw(title);
 
             window.draw(namePromptText);
 
-            sf::RectangleShape inputBox(sf::Vector2f(300, 40));
-            inputBox.setPosition(WINDOW_WIDTH / 2 - 150, 250);
+            sf::RectangleShape inputBox(sf::Vector2f(300.0f, 40.0f));
+            inputBox.setPosition(WINDOW_WIDTH / 2.0f - 150.0f, 250.0f);
             inputBox.setFillColor(sf::Color::Black);
-            inputBox.setOutlineThickness(2);
+            inputBox.setOutlineThickness(2.0f);
             inputBox.setOutlineColor(sf::Color::White);
             window.draw(inputBox);
 
@@ -711,7 +1110,7 @@ int main() {
                 hintText.setString("Please enter your name to continue");
                 hintText.setCharacterSize(20);
                 hintText.setFillColor(sf::Color::Red);
-                hintText.setPosition(WINDOW_WIDTH / 2 - hintText.getLocalBounds().width / 2, 380);
+                hintText.setPosition(WINDOW_WIDTH / 2.0f - hintText.getLocalBounds().width / 2.0f, 380.0f);
                 window.draw(hintText);
             }
         }
@@ -719,7 +1118,6 @@ int main() {
             window.draw(pauseText);
             resumeButton.draw(window);
             playButton.draw(window);
-            levelButton.draw(window);
             scoresButton.draw(window);
             exitButton.draw(window);
         }
@@ -729,7 +1127,7 @@ int main() {
             levelText.setString("Select Difficulty");
             levelText.setCharacterSize(36);
             levelText.setFillColor(sf::Color::White);
-            levelText.setPosition(WINDOW_WIDTH / 2 - levelText.getLocalBounds().width / 2, 100);
+            levelText.setPosition(WINDOW_WIDTH / 2.0f - levelText.getLocalBounds().width / 2.0f, 100.0f);
             window.draw(levelText);
 
             easyButton.draw(window);
@@ -743,25 +1141,25 @@ int main() {
             scoresTitle.setString("High Scores");
             scoresTitle.setCharacterSize(36);
             scoresTitle.setFillColor(sf::Color::White);
-            scoresTitle.setPosition(WINDOW_WIDTH / 2 - scoresTitle.getLocalBounds().width / 2, 50);
+            scoresTitle.setPosition(WINDOW_WIDTH / 2.0f - scoresTitle.getLocalBounds().width / 2.0f, 50.0f);
             window.draw(scoresTitle);
 
             for (int i = 0; i < numHighScores && i < MAX_HIGH_SCORES; i++) {
                 sf::Text scoreEntry;
                 scoreEntry.setFont(font);
 
-                std::string difficultyStr;
+                string difficultyStr;
                 switch (highScores[i].difficulty) {
                 case EASY: difficultyStr = "Easy"; break;
                 case MEDIUM: difficultyStr = "Medium"; break;
                 case HARD: difficultyStr = "Hard"; break;
                 }
 
-                scoreEntry.setString(std::to_string(i + 1) + ". " + highScores[i].name + " - " +
-                    std::to_string(highScores[i].score) + " (" + difficultyStr + ")");
+                scoreEntry.setString(to_string(i + 1) + ". " + highScores[i].name + " - " +
+                    to_string(highScores[i].score) + " (" + difficultyStr + ")");
                 scoreEntry.setCharacterSize(24);
                 scoreEntry.setFillColor(sf::Color::White);
-                scoreEntry.setPosition(WINDOW_WIDTH / 2 - 150, 120 + i * 30);
+                scoreEntry.setPosition(WINDOW_WIDTH / 2.0f - 150.0f, 120.0f + i * 30.0f);
                 window.draw(scoreEntry);
             }
 
@@ -770,14 +1168,67 @@ int main() {
         else if (gameState == GAME_OVER) {
             sf::Text gameOverText;
             gameOverText.setFont(font);
-            gameOverText.setString("Game Over! Final Score: " + std::to_string(score / 10));
+            gameOverText.setString("Game Over! Final Score: " + to_string(score / 10));
             gameOverText.setCharacterSize(36);
             gameOverText.setFillColor(sf::Color::White);
-            gameOverText.setPosition(WINDOW_WIDTH / 2 - gameOverText.getLocalBounds().width / 2, 150);
+            gameOverText.setPosition(WINDOW_WIDTH / 2.0f - gameOverText.getLocalBounds().width / 2.0f, 150.0f);
             window.draw(gameOverText);
 
             playButton.draw(window);
             exitButton.draw(window);
+        }
+        else if (gameState == TUTORIAL) {
+            window.clear(sf::Color(70, 70, 70));
+
+            sf::Text tutorialTitle;
+            tutorialTitle.setFont(font);
+            tutorialTitle.setString("How to Play");
+            tutorialTitle.setCharacterSize(48);
+            tutorialTitle.setFillColor(sf::Color::White);
+            tutorialTitle.setPosition(WINDOW_WIDTH / 2.0f - tutorialTitle.getLocalBounds().width / 2.0f, 50.0f);
+            window.draw(tutorialTitle);
+
+            sf::Text tutorialText;
+            tutorialText.setFont(font);
+            tutorialText.setString(
+                "CONTROLS:\n"
+                "Press SPACE to make the helicopter ascend\n"
+                "Press ESC to pause the game\n\n"
+                "OBJECTIVE:\n"
+                "Avoid obstacles and try to survive as long as possible\n"
+                "Each second survived gives you 1 point\n\n"
+                "POWER-UPS:\n"
+                "Blue Orb - Shield (protects from one hit)\n"
+                "Green Orb - Score Multiplier (doubles points)\n"
+                "Red Orb - Speed Boost (increases flap power)\n"
+                "Yellow Orb - Invincibility (no collisions)\n\n"
+                "DIFFICULTY LEVELS:\n"
+                "Easy - Slower obstacles, more forgiving physics\n"
+                "Medium - Balanced challenge\n"
+                "Hard - Faster obstacles, more difficult physics"
+            );
+            tutorialText.setCharacterSize(24);
+            tutorialText.setFillColor(sf::Color::White);
+            tutorialText.setPosition(50.0f, 120.0f);
+            window.draw(tutorialText);
+
+            backButton.draw(window);
+        }
+        else if (gameState == SETTINGS) {
+            window.clear(sf::Color(70, 70, 70));
+
+            sf::Text settingsTitle;
+            settingsTitle.setFont(font);
+            settingsTitle.setString("Settings");
+            settingsTitle.setCharacterSize(48);
+            settingsTitle.setFillColor(sf::Color::White);
+            settingsTitle.setPosition(WINDOW_WIDTH / 2.0f - settingsTitle.getLocalBounds().width / 2.0f, 50.0f);
+            window.draw(settingsTitle);
+
+            // Sound and music toggle buttons would be implemented here
+            // Volume sliders would be implemented here
+
+            backButton.draw(window);
         }
 
         window.display();
