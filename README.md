@@ -11,7 +11,7 @@ A 2D side-scrolling helicopter arcade game built with SFML (Simple and Fast Mult
 - [Features](#-features)
 - [Installation](#-installation)
 - [Controls](#-controls)
-- [Gameplay](#-gameplay)
+- [Gameplay](#%EF%B8%8F-gameplay)
 - [Contributing](#-contributing)
 - [License](#-license)
 - [Credits](#-credits)
@@ -45,7 +45,7 @@ A 2D side-scrolling helicopter arcade game built with SFML (Simple and Fast Mult
 ## 🕹️ Gameplay
 ![Gameplay](gameplay.png)
 
-## 🤝 Contribute
+## 🤝 Contributing
 1. Fork the repository [This Repository](https://github.com/devutmani/HelicopterGame)
 2. Create a new branch
 3. Commit your changes
