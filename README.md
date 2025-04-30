@@ -32,10 +32,7 @@ A 2D side-scrolling helicopter arcade game built with SFML (Simple and Fast Mult
 2. Extract the ZIP file
 3. Run `main.exe`
 
-## 🕹️ Gameplay
-![Game Screenshot](Helicopter-Game/gameplay.png)
-
-## Controls
+## 🎮 Controls
 
 |       Input      |        Action       |
 |------------------|---------------------|
@@ -45,3 +42,5 @@ A 2D side-scrolling helicopter arcade game built with SFML (Simple and Fast Mult
 |       SPACE      |      Start game     |
 |       ALT+F4     |       Quit game     |
 
+## 🕹️ Gameplay
+![Game Screenshot](Helicopter-Game/gameplay.png)
