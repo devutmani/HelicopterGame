@@ -1962,5 +1962,5 @@ int main()
         return EXIT_FAILURE;
     }
 
-    return EXIT_SUCCESS; // Game ended
+    return EXIT_SUCCESS;
 }
