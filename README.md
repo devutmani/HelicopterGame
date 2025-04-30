@@ -33,4 +33,4 @@ A 2D side-scrolling helicopter arcade game built with SFML (Simple and Fast Mult
 3. Run `HelicopterGame.exe`
 
 ## 🕹️ Game Play
-![Game Screenshot](Helicopter_Game/gameplay.png)
+![Game Screenshot](Helicopter-Game/gameplay.png)
