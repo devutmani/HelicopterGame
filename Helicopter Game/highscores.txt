@@ -1,0 +1,6 @@
+Masoom,450,1
+Dev,220,2
+Jeetesh,195,1
+Dev,160,1
+DEV,135,1
+Jai Dev,0,2
