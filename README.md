@@ -30,7 +30,7 @@ A 2D side-scrolling helicopter arcade game built with SFML (Simple and Fast Mult
 ### Windows (Pre-built Binary)
 1. Download the latest release from [Releases](https://github.com/devutmani/HelicopterGame/releases)
 2. Extract the ZIP file
-3. Run `HelicopterGame.exe`
+3. Run `Helicopter Game.exe`
 
 ## 🎮 Controls
 
