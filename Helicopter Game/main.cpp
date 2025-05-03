@@ -69,23 +69,23 @@ namespace Constants
 
     // Paths
     const std::string HIGHSCORE_FILE = "highscores.txt";
-    const std::string FONT_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Fonts/bruce.ttf";
-    const std::string MENU_BG_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/menu.jpg";
-    const std::string BG_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/background.jpg";
-    const std::string HELI_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/helicopter.png";
-    const std::string BIRD_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/bird.png";
-    const std::string TREE_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/tree.png";
-    const std::string COIN5_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/coin5.png";
-    const std::string COIN10_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/coin10.png";
-    const std::string COIN50_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/coin50.png";
-    const std::string FUEL_PATH = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Images/fuel_bottle.png";
-    const std::string CLICK_SOUND = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/click.wav";
-    const std::string ENGINE_SOUND = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/engine.wav";
-    const std::string CRASH_SOUND = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/crash.wav";
-    const std::string COIN_SOUND = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/coin.wav";
-    const std::string FUEL_SOUND = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/fuel.wav";
-    const std::string MENU_MUSIC = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/menu_music.ogg";
-    const std::string GAME_MUSIC = "E:/Helicopter Game/Helicopter Game/Helicopter Game/Assets/Sounds/game_music.ogg";
+    const std::string FONT_PATH = "Assets/Fonts/bruce.ttf";
+    const std::string MENU_BG_PATH = "Assets/Images/menu.jpg";
+    const std::string BG_PATH = "Assets/Images/background.jpg";
+    const std::string HELI_PATH = "Assets/Images/helicopter.png";
+    const std::string BIRD_PATH = "Assets/Images/bird.png";
+    const std::string TREE_PATH = "Assets/Images/tree.png";
+    const std::string COIN5_PATH = "Assets/Images/coin5.png";
+    const std::string COIN10_PATH = "Assets/Images/coin10.png";
+    const std::string COIN50_PATH = "Assets/Images/coin50.png";
+    const std::string FUEL_PATH = "Assets/Images/fuel_bottle.png";
+    const std::string CLICK_SOUND = "Assets/Sounds/click.wav";
+    const std::string ENGINE_SOUND = "Assets/Sounds/engine.wav";
+    const std::string CRASH_SOUND = "Assets/Sounds/crash.wav";
+    const std::string COIN_SOUND = "Assets/Sounds/coin.wav";
+    const std::string FUEL_SOUND = "Assets/Sounds/fuel.wav";
+    const std::string MENU_MUSIC = "Assets/Sounds/menu_music.ogg";
+    const std::string GAME_MUSIC = "Assets/Sounds/game_music.ogg";
 }
 
 enum class GameState 
