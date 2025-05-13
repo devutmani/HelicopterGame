@@ -9,7 +9,7 @@
 #include <fstream>
 #include <algorithm>
 
-namespace Constants 
+namespace Constants
 {
     // Window
     constexpr int WINDOW_WIDTH = 800;
@@ -37,7 +37,7 @@ namespace Constants
     constexpr float FUEL_BOTTLE_SPAWN_RATE = 9.0f;
 
     // Difficulty
-    namespace Easy 
+    namespace Easy
     {
         constexpr float SCROLL_SPEED = 80.f;
         constexpr float FUEL_CONSUMPTION = 2.0f;
@@ -45,7 +45,7 @@ namespace Constants
         constexpr float MOVE_SPEED = 350.f;
     }
 
-    namespace Medium 
+    namespace Medium
     {
         constexpr float SCROLL_SPEED = 100.f;
         constexpr float FUEL_CONSUMPTION = 2.5f;
@@ -53,7 +53,7 @@ namespace Constants
         constexpr float MOVE_SPEED = 400.f;
     }
 
-    namespace Hard 
+    namespace Hard
     {
         constexpr float SCROLL_SPEED = 130.f;
         constexpr float FUEL_CONSUMPTION = 3.0f;
@@ -88,7 +88,7 @@ namespace Constants
     const std::string GAME_MUSIC = "Assets/Sounds/game_music.ogg";
 }
 
-enum class GameState 
+enum class GameState
 {
     Menu,
     NameInput,
@@ -103,45 +103,45 @@ enum class GameState
     HighScores
 };
 
-enum class Difficulty 
+enum class Difficulty
 {
     Easy,
     Medium,
     Hard
 };
 
-enum class ObstacleType 
+enum class ObstacleType
 {
     Bird,
     Tree
 };
 
-enum class CoinType 
+enum class CoinType
 {
     Coin5,
     Coin10,
     Coin50
 };
 
-struct HighScoreEntry 
+struct HighScoreEntry
 {
     std::string name;
     int score;
     Difficulty difficulty;
 
-    bool operator<(const HighScoreEntry& other) const 
+    bool operator<(const HighScoreEntry& other) const
     {
         if (score != other.score) return score > other.score;
         return name < other.name; // Secondary sort by name
     }
 };
 
-class ResourceManager 
+class ResourceManager
 {
 public:
-    static bool loadFont(sf::Font& font, const std::string& path) 
+    static bool loadFont(sf::Font& font, const std::string& path)
     {
-        if (!font.loadFromFile(path)) 
+        if (!font.loadFromFile(path))
         {
             std::cerr << "ERROR: Failed to load font from " << path << std::endl;
             return false;
@@ -149,22 +149,22 @@ public:
         return true;
     }
 
-    static bool loadTexture(sf::Texture& texture, const std::string& path) 
+    static bool loadTexture(sf::Texture& texture, const std::string& path)
     {
-        if (!texture.loadFromFile(path)) 
+        if (!texture.loadFromFile(path))
         {
             std::cerr << "ERROR: Failed to load texture from " << path << std::endl;
 
             // Create error placeholder
             sf::Image placeholder;
             placeholder.create(64, 64, sf::Color::Magenta);
-            for (int i = 0; i < 64; i++) 
+            for (int i = 0; i < 64; i++)
             {
                 placeholder.setPixel(i, i, sf::Color::White);
                 placeholder.setPixel(63 - i, i, sf::Color::White);
             }
 
-            if (!texture.loadFromImage(placeholder)) 
+            if (!texture.loadFromImage(placeholder))
             {
                 std::cerr << "FATAL: Failed to create placeholder texture" << std::endl;
                 return false;
@@ -174,9 +174,9 @@ public:
         return true;
     }
 
-    static bool loadSound(sf::SoundBuffer& buffer, sf::Sound& sound, const std::string& path) 
+    static bool loadSound(sf::SoundBuffer& buffer, sf::Sound& sound, const std::string& path)
     {
-        if (!buffer.loadFromFile(path)) 
+        if (!buffer.loadFromFile(path))
         {
             std::cerr << "ERROR: Failed to load sound from " << path << std::endl;
             return false;
@@ -186,9 +186,9 @@ public:
         return true;
     }
 
-    static bool loadMusic(sf::Music& music, const std::string& path) 
+    static bool loadMusic(sf::Music& music, const std::string& path)
     {
-        if (!music.openFromFile(path)) 
+        if (!music.openFromFile(path))
         {
             std::cerr << "ERROR: Failed to load music from " << path << std::endl;
             return false;
@@ -197,10 +197,10 @@ public:
     }
 };
 
-class FuelBottle 
+class FuelBottle
 {
 public:
-    FuelBottle(const sf::Texture& texture, float x, float y) : sprite(texture), active(true) 
+    FuelBottle(const sf::Texture& texture, float x, float y) : sprite(texture), active(true)
     {
         sprite.setPosition(x, y);
         sprite.setScale(0.01f, 0.01f);
@@ -208,9 +208,9 @@ public:
 
     void update(float deltaTime) {}
 
-    void draw(sf::RenderWindow& window) const 
+    void draw(sf::RenderWindow& window) const
     {
-        if (active) 
+        if (active)
         {
             window.draw(sprite);
         }
@@ -226,14 +226,14 @@ private:
     bool active;
 };
 
-class Coin 
+class Coin
 {
 public:
-    Coin(CoinType type, const sf::Texture& texture, float x, float y) : type(type), sprite(texture), active(true) 
+    Coin(CoinType type, const sf::Texture& texture, float x, float y) : type(type), sprite(texture), active(true)
     {
         sprite.setPosition(x, y);
 
-        switch (type) 
+        switch (type)
         {
         case CoinType::Coin5:
             sprite.setScale(0.06f, 0.06f);
@@ -249,9 +249,9 @@ public:
 
     void update(float deltaTime) {}
 
-    void draw(sf::RenderWindow& window) const 
+    void draw(sf::RenderWindow& window) const
     {
-        if (active) 
+        if (active)
         {
             window.draw(sprite);
         }
@@ -262,9 +262,9 @@ public:
     sf::Sprite& getSprite() { return sprite; }
     CoinType getType() const { return type; }
 
-    int getValue() const 
+    int getValue() const
     {
-        switch (type) 
+        switch (type)
         {
         case CoinType::Coin5: return 5;
         case CoinType::Coin10: return 10;
@@ -281,14 +281,14 @@ private:
     bool active;
 };
 
-class Obstacle 
+class Obstacle
 {
 public:
-    Obstacle(ObstacleType type, const sf::Texture& texture, float x, float y, float speed) : type(type), sprite(texture), speed(speed), active(true), verticalSpeed(0.f), movementPatternTime(0.f) 
+    Obstacle(ObstacleType type, const sf::Texture& texture, float x, float y, float speed) : type(type), sprite(texture), speed(speed), active(true), verticalSpeed(0.f), movementPatternTime(0.f)
     {
         sprite.setPosition(x, y);
 
-        switch (type) 
+        switch (type)
         {
         case ObstacleType::Bird:
             sprite.setScale(0.05f, 0.05f);
@@ -301,13 +301,13 @@ public:
         }
     }
 
-    void update(float deltaTime, bool isLanded, float scrollSpeed) 
+    void update(float deltaTime, bool isLanded, float scrollSpeed)
     {
         movementPatternTime += deltaTime;
 
-        if (type == ObstacleType::Bird) 
+        if (type == ObstacleType::Bird)
         {
-            if (movementPatternTime >= movementPatternDuration) 
+            if (movementPatternTime >= movementPatternDuration)
             {
                 movementPatternTime = 0.f;
                 verticalSpeed = (rand() % static_cast<int>(Constants::BIRD_VERTICAL_SPEED_RANGE * 2)) - Constants::BIRD_VERTICAL_SPEED_RANGE;
@@ -323,18 +323,18 @@ public:
             sprite.setPosition(pos);
         }
 
-        else if (type == ObstacleType::Tree && !isLanded) 
+        else if (type == ObstacleType::Tree && !isLanded)
         {
             sprite.move(-scrollSpeed * deltaTime, 0);
         }
 
-        if (sprite.getPosition().x + sprite.getGlobalBounds().width < 0) 
+        if (sprite.getPosition().x + sprite.getGlobalBounds().width < 0)
         {
             active = false;
         }
     }
 
-    void draw(sf::RenderWindow& window) const 
+    void draw(sf::RenderWindow& window) const
     {
         window.draw(sprite);
     }
@@ -353,7 +353,7 @@ private:
     float movementPatternDuration;
 };
 
-class Button 
+class Button
 {
 public:
     Button(const std::string& text, const sf::Font& font, unsigned int characterSize,
@@ -363,7 +363,7 @@ public:
         : m_shape(size), m_text(text, font, characterSize),
         m_normalColor(buttonColor), m_hoverColor(sf::Color(0, 100, 0)),
         m_normalTextColor(textColor), m_hoverTextColor(sf::Color::Black),
-        m_clickSound(clickSound) 
+        m_clickSound(clickSound)
     {
 
         m_shape.setPosition(position);
@@ -380,21 +380,21 @@ public:
         m_bounds = sf::FloatRect(position, size);
     }
 
-    void draw(sf::RenderWindow& window) const 
+    void draw(sf::RenderWindow& window) const
     {
         window.draw(m_shape);
         window.draw(m_text);
     }
 
-    bool isMouseOver(const sf::RenderWindow& window) const 
+    bool isMouseOver(const sf::RenderWindow& window) const
     {
         sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
         return m_bounds.contains(mousePos);
     }
 
-    void setHighlight(bool highlight) 
+    void setHighlight(bool highlight)
     {
-        if (highlight) 
+        if (highlight)
         {
             m_shape.setFillColor(m_hoverColor);
             m_text.setFillColor(m_hoverTextColor);
@@ -402,7 +402,7 @@ public:
             m_shape.setOutlineThickness(3.f);
         }
 
-        else 
+        else
         {
             m_shape.setFillColor(m_normalColor);
             m_text.setFillColor(m_normalTextColor);
@@ -411,9 +411,9 @@ public:
         }
     }
 
-    void playClickSound() 
+    void playClickSound()
     {
-        if (m_clickSound) 
+        if (m_clickSound)
         {
             m_clickSound->play();
         }
@@ -430,7 +430,7 @@ private:
     sf::Sound* m_clickSound;
 };
 
-class HelicopterGame 
+class HelicopterGame
 {
 private:
     sf::RenderWindow window;
@@ -483,6 +483,7 @@ private:
     bool isLanded;
     bool gameStarted;
     bool gameOver;
+    bool resourcesLoaded;
     sf::Clock gameClock;
     sf::Clock obstacleClock;
     sf::Clock coin5Clock;
@@ -531,15 +532,17 @@ private:
     // Helper functions
     static Button createMenuButton(const std::string& text, const sf::Font& font,
         float yPos, sf::Vector2f windowSize, sf::Sound* clickSound,
-        sf::Color buttonColor = sf::Color(46, 125, 50, 200)) 
+        sf::Color buttonColor = sf::Color(46, 125, 50, 200))
     {
         const sf::Vector2f buttonSize(200.f, 50.f);
         return Button(text, font, 24, sf::Color::White, buttonColor,
             sf::Vector2f((windowSize.x - buttonSize.x) / 2.0f, yPos), buttonSize, clickSound);
     }
 
-    void loadResources() 
+    void loadResources()
     {
+        resourcesLoaded = false;
+
         // Initialize random
         std::srand(static_cast<unsigned>(std::time(nullptr)));
         rng = std::mt19937(std::rand());
@@ -547,23 +550,23 @@ private:
         heightDist = std::uniform_int_distribution<int>(100, 400);
 
         // Load font
-        if (!ResourceManager::loadFont(font, Constants::FONT_PATH)) 
+        if (!ResourceManager::loadFont(font, Constants::FONT_PATH))
         {
             // Try to continue with default font
-            if (!font.loadFromFile("arial.ttf")) 
+            if (!font.loadFromFile("arial.ttf"))
             {
                 std::cerr << "FATAL: No font available!" << std::endl;
             }
         }
 
         // Load menu background
-        if (!ResourceManager::loadTexture(menuBgTexture, Constants::MENU_BG_PATH)) 
+        if (!ResourceManager::loadTexture(menuBgTexture, Constants::MENU_BG_PATH))
         {
             menuBackground.setSize(sf::Vector2f(window.getSize()));
             menuBackground.setFillColor(sf::Color(30, 30, 60));
         }
 
-        else 
+        else
         {
             menuBackground.setTexture(&menuBgTexture);
             menuBackground.setSize(sf::Vector2f(window.getSize()));
@@ -577,35 +580,36 @@ private:
         ResourceManager::loadSound(fuelBuffer, fuelSound, Constants::FUEL_SOUND);
         engineSound.setLoop(true);
 
-        // Load music
-        if (ResourceManager::loadMusic(bgMusic, Constants::MENU_MUSIC)) 
-        {
-            bgMusic.setLoop(true);
-            bgMusic.setVolume(Constants::MENU_MUSIC_VOLUME);
-            bgMusic.play();
-        }
+        // Load music (but don't play yet)
+        ResourceManager::loadMusic(bgMusic, Constants::MENU_MUSIC);
+        bgMusic.setLoop(true);
+        bgMusic.setVolume(Constants::MENU_MUSIC_VOLUME);
 
-        if (ResourceManager::loadMusic(gameMusic, Constants::GAME_MUSIC)) 
-        {
-            gameMusic.setLoop(true);
-            gameMusic.setVolume(Constants::GAME_MUSIC_VOLUME);
-        }
+        ResourceManager::loadMusic(gameMusic, Constants::GAME_MUSIC);
+        gameMusic.setLoop(true);
+        gameMusic.setVolume(Constants::GAME_MUSIC_VOLUME);
 
         // Load textures
-        ResourceManager::loadTexture(bgTexture, Constants::BG_PATH);
-        ResourceManager::loadTexture(heliTexture, Constants::HELI_PATH);
-        ResourceManager::loadTexture(birdTexture, Constants::BIRD_PATH);
-        ResourceManager::loadTexture(treeTexture, Constants::TREE_PATH);
-        ResourceManager::loadTexture(coin5Texture, Constants::COIN5_PATH);
-        ResourceManager::loadTexture(coin10Texture, Constants::COIN10_PATH);
-        ResourceManager::loadTexture(coin50Texture, Constants::COIN50_PATH);
-        ResourceManager::loadTexture(fuelBottleTexture, Constants::FUEL_PATH);
+        bool texturesLoaded = true;
+        texturesLoaded &= ResourceManager::loadTexture(bgTexture, Constants::BG_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(heliTexture, Constants::HELI_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(birdTexture, Constants::BIRD_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(treeTexture, Constants::TREE_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(coin5Texture, Constants::COIN5_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(coin10Texture, Constants::COIN10_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(coin50Texture, Constants::COIN50_PATH);
+        texturesLoaded &= ResourceManager::loadTexture(fuelBottleTexture, Constants::FUEL_PATH);
+
+        if (!texturesLoaded)
+        {
+            std::cerr << "Warning: Some textures failed to load" << std::endl;
+        }
 
         // Setup background sprites
         float scaleX = static_cast<float>(Constants::WINDOW_WIDTH) / bgTexture.getSize().x;
         float scaleY = static_cast<float>(Constants::WINDOW_HEIGHT) / bgTexture.getSize().y;
 
-        for (int i = 0; i < 2; ++i) 
+        for (int i = 0; i < 2; ++i)
         {
             bgSprites[i].setTexture(bgTexture);
             bgSprites[i].setScale(scaleX, scaleY);
@@ -702,20 +706,24 @@ private:
 
         // Load high scores
         loadHighScores();
+
+        // Mark resources as loaded and play music
+        resourcesLoaded = true;
+        bgMusic.play();
     }
 
-    void loadHighScores() 
+    void loadHighScores()
     {
         highScores.clear();
 
         // Create file if it doesn't exist
         std::ifstream file(Constants::HIGHSCORE_FILE);
 
-        if (!file.is_open()) 
+        if (!file.is_open())
         {
             std::ofstream createFile(Constants::HIGHSCORE_FILE);
 
-            if (!createFile) 
+            if (!createFile)
             {
                 std::cerr << "WARNING: Could not create high scores file" << std::endl;
                 return;
@@ -728,16 +736,16 @@ private:
         HighScoreEntry entry;
         std::string line;
 
-        while (std::getline(file, line)) 
+        while (std::getline(file, line))
         {
             size_t firstComma = line.find(',');
             size_t secondComma = line.find(',', firstComma + 1);
 
-            if (firstComma != std::string::npos && secondComma != std::string::npos) 
+            if (firstComma != std::string::npos && secondComma != std::string::npos)
             {
                 entry.name = line.substr(0, firstComma);
 
-                try 
+                try
                 {
                     entry.score = std::stoi(line.substr(firstComma + 1, secondComma - firstComma - 1));
                     int diff = std::stoi(line.substr(secondComma + 1));
@@ -745,7 +753,7 @@ private:
                     highScores.push_back(entry);
                 }
 
-                catch (...) 
+                catch (...)
                 {
                     std::cerr << "WARNING: Invalid high score entry: " << line << std::endl;
                 }
@@ -755,61 +763,61 @@ private:
         std::sort(highScores.begin(), highScores.end());
     }
 
-    void saveHighScores() 
+    void saveHighScores()
     {
         std::ofstream file(Constants::HIGHSCORE_FILE);
-        if (file.is_open()) 
+        if (file.is_open())
         {
-            for (const auto& entry : highScores) 
+            for (const auto& entry : highScores)
             {
                 file << entry.name << "," << entry.score << ","
                     << static_cast<int>(entry.difficulty) << "\n";
             }
         }
 
-        else 
+        else
         {
             std::cerr << "ERROR: Could not save high scores" << std::endl;
         }
     }
 
-    void addHighScore(const std::string& name, int score, Difficulty difficulty) 
+    void addHighScore(const std::string& name, int score, Difficulty difficulty)
     {
         HighScoreEntry entry{ name, score, difficulty };
         highScores.push_back(entry);
         std::sort(highScores.begin(), highScores.end());
 
-        if (highScores.size() > 10) 
+        if (highScores.size() > 10)
         {
             highScores.resize(10);
         }
         saveHighScores();
     }
 
-    void spawnObstacle() 
+    void spawnObstacle()
     {
         ObstacleType type = (static_cast<float>(rand()) / RAND_MAX < Constants::BIRD_SPAWN_CHANCE) ?
             ObstacleType::Bird : ObstacleType::Tree;
 
         float height;
-        if (type == ObstacleType::Bird) 
+        if (type == ObstacleType::Bird)
         {
             height = rand() % (Constants::WINDOW_HEIGHT - 100);
         }
 
-        else 
+        else
         {
             height = Constants::WINDOW_HEIGHT - Constants::LANDING_HEIGHT - treeTexture.getSize().y * 0.04f;
         }
 
         float speed;
 
-        if (type == ObstacleType::Tree) 
+        if (type == ObstacleType::Tree)
         {
             speed = currentScrollSpeed;
         }
 
-        else 
+        else
         {
             float speedMultiplier = Constants::BIRD_MIN_SPEED_MULTIPLIER +
                 (static_cast<float>(rand()) / RAND_MAX) * (Constants::BIRD_MAX_SPEED_MULTIPLIER - Constants::BIRD_MIN_SPEED_MULTIPLIER);
@@ -820,45 +828,45 @@ private:
         obstacles.emplace_back(type, *texture, static_cast<float>(Constants::WINDOW_WIDTH), height, speed);
     }
 
-    void spawnCoin(CoinType type) 
+    void spawnCoin(CoinType type)
     {
         float x = static_cast<float>(Constants::WINDOW_WIDTH);
         float y = 50.f + static_cast<float>(rand() % (Constants::WINDOW_HEIGHT - 150));
 
         sf::Texture* texture = nullptr;
-        switch (type) 
+        switch (type)
         {
         case CoinType::Coin5: texture = &coin5Texture; break;
         case CoinType::Coin10: texture = &coin10Texture; break;
         case CoinType::Coin50: texture = &coin50Texture; break;
         }
 
-        if (texture) 
+        if (texture)
         {
             coins.emplace_back(type, *texture, x, y);
         }
     }
 
-    void spawnFuelBottle() 
+    void spawnFuelBottle()
     {
         float x = static_cast<float>(Constants::WINDOW_WIDTH);
         float y = 50.f + static_cast<float>(rand() % (Constants::WINDOW_HEIGHT - 150));
         fuelBottles.emplace_back(fuelBottleTexture, x, y);
     }
 
-    void updateFuel(float deltaTime) 
+    void updateFuel(float deltaTime)
     {
-        if (isLanded) 
+        if (isLanded)
         {
             fuel += Constants::FUEL_REGEN_RATE * deltaTime;
             if (fuel > Constants::MAX_FUEL) fuel = Constants::MAX_FUEL;
         }
 
-        else 
+        else
         {
             fuel -= currentFuelConsumption * deltaTime;
 
-            if (fuel <= 0) 
+            if (fuel <= 0)
             {
                 fuel = 0;
                 gameOver = true;
@@ -868,17 +876,17 @@ private:
 
         fuelBar.setSize(sf::Vector2f(fuel, 20.f));
 
-        if (fuel > 50) 
+        if (fuel > 50)
         {
             fuelBar.setFillColor(sf::Color::Green);
         }
 
-        else if (fuel > 20) 
+        else if (fuel > 20)
         {
             fuelBar.setFillColor(sf::Color::Yellow);
         }
 
-        else 
+        else
         {
             fuelBar.setFillColor(sf::Color::Red);
         }
@@ -886,31 +894,31 @@ private:
         fuelText.setString(std::to_string(static_cast<int>(fuel)) + "%");
     }
 
-    void updateCoins(float deltaTime) 
+    void updateCoins(float deltaTime)
     {
-        if (coin5Clock.getElapsedTime().asSeconds() >= Constants::COIN5_SPAWN_RATE) 
+        if (coin5Clock.getElapsedTime().asSeconds() >= Constants::COIN5_SPAWN_RATE)
         {
             spawnCoin(CoinType::Coin5);
             coin5Clock.restart();
         }
 
-        if (coin10Clock.getElapsedTime().asSeconds() >= Constants::COIN10_SPAWN_RATE) 
+        if (coin10Clock.getElapsedTime().asSeconds() >= Constants::COIN10_SPAWN_RATE)
         {
             spawnCoin(CoinType::Coin10);
             coin10Clock.restart();
         }
 
-        if (coin50Clock.getElapsedTime().asSeconds() >= Constants::COIN50_SPAWN_RATE) 
+        if (coin50Clock.getElapsedTime().asSeconds() >= Constants::COIN50_SPAWN_RATE)
         {
             spawnCoin(CoinType::Coin50);
             coin50Clock.restart();
         }
 
-        for (auto& coin : coins) 
+        for (auto& coin : coins)
         {
             coin.update(deltaTime);
 
-            if (coin.isActive() && helicopter.getGlobalBounds().intersects(coin.getBounds())) 
+            if (coin.isActive() && helicopter.getGlobalBounds().intersects(coin.getBounds()))
             {
                 coinSound.play();
                 score += coin.getValue();
@@ -923,18 +931,18 @@ private:
             coins.end());
     }
 
-    void updateFuelBottles(float deltaTime) 
+    void updateFuelBottles(float deltaTime)
     {
-        if (fuelBottleClock.getElapsedTime().asSeconds() >= Constants::FUEL_BOTTLE_SPAWN_RATE) 
+        if (fuelBottleClock.getElapsedTime().asSeconds() >= Constants::FUEL_BOTTLE_SPAWN_RATE)
         {
             spawnFuelBottle();
             fuelBottleClock.restart();
         }
 
-        for (auto& bottle : fuelBottles) 
+        for (auto& bottle : fuelBottles)
         {
             bottle.update(deltaTime);
-            if (bottle.isActive() && helicopter.getGlobalBounds().intersects(bottle.getBounds())) 
+            if (bottle.isActive() && helicopter.getGlobalBounds().intersects(bottle.getBounds()))
             {
                 fuelSound.play();
                 fuel = std::min(fuel + Constants::FUEL_BOTTLE_VALUE, Constants::MAX_FUEL);
@@ -947,20 +955,20 @@ private:
             fuelBottles.end());
     }
 
-    void handleMenuInput() 
+    void handleMenuInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) 
+            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
             {
-                if (playButton.isMouseOver(window)) 
+                if (playButton.isMouseOver(window))
                 {
                     playButton.playClickSound();
                     currentState = GameState::NameInput;
@@ -968,25 +976,25 @@ private:
                     nameInputText.setString("");
                 }
 
-                else if (optionsButton.isMouseOver(window)) 
+                else if (optionsButton.isMouseOver(window))
                 {
                     optionsButton.playClickSound();
                     currentState = GameState::Options;
                 }
 
-                else if (highScoresButton.isMouseOver(window)) 
+                else if (highScoresButton.isMouseOver(window))
                 {
                     highScoresButton.playClickSound();
                     currentState = GameState::HighScores;
                 }
 
-                else if (creditsButton.isMouseOver(window)) 
+                else if (creditsButton.isMouseOver(window))
                 {
                     creditsButton.playClickSound();
                     currentState = GameState::Credits;
                 }
 
-                else if (exitButton.isMouseOver(window)) 
+                else if (exitButton.isMouseOver(window))
                 {
                     exitButton.playClickSound();
                     window.close();
@@ -1001,36 +1009,36 @@ private:
         exitButton.setHighlight(exitButton.isMouseOver(window));
     }
 
-    void handleNameInput() 
+    void handleNameInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) 
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
             {
                 currentState = GameState::Menu;
                 return;
             }
 
-            if (event.type == sf::Event::TextEntered) 
+            if (event.type == sf::Event::TextEntered)
             {
-                if (event.text.unicode == '\b' && !playerName.empty()) 
+                if (event.text.unicode == '\b' && !playerName.empty())
                 {
                     playerName.pop_back();
                 }
 
-                else if (event.text.unicode < 128 && event.text.unicode != '\r' && event.text.unicode != '\t' && playerName.length() < 15) 
+                else if (event.text.unicode < 128 && event.text.unicode != '\r' && event.text.unicode != '\t' && playerName.length() < 15)
                 {
                     // Only allow alphanumeric and space
                     char c = static_cast<char>(event.text.unicode);
 
-                    if (isalnum(c) || c == ' ') 
+                    if (isalnum(c) || c == ' ')
                     {
                         playerName += c;
                     }
@@ -1040,13 +1048,13 @@ private:
                     nameInputText.getLocalBounds().height / 2.f + 5.f);
             }
 
-            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) 
+            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
             {
-                if (nameSubmitButton.isMouseOver(window)) 
+                if (nameSubmitButton.isMouseOver(window))
                 {
                     nameSubmitButton.playClickSound();
 
-                    if (playerName.length() >= 3) 
+                    if (playerName.length() >= 3)
                     {
                         currentState = GameState::DifficultySelect;
                     }
@@ -1057,26 +1065,26 @@ private:
         nameSubmitButton.setHighlight(nameSubmitButton.isMouseOver(window));
     }
 
-    void handleDifficultyInput() 
+    void handleDifficultyInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) 
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
             {
                 currentState = GameState::NameInput;
                 return;
             }
 
-            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) 
+            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
             {
-                if (easyButton.isMouseOver(window)) 
+                if (easyButton.isMouseOver(window))
                 {
                     easyButton.playClickSound();
                     currentDifficulty = Difficulty::Easy;
@@ -1087,7 +1095,7 @@ private:
                     startGame();
                 }
 
-                else if (mediumButton.isMouseOver(window)) 
+                else if (mediumButton.isMouseOver(window))
                 {
                     mediumButton.playClickSound();
                     currentDifficulty = Difficulty::Medium;
@@ -1098,7 +1106,7 @@ private:
                     startGame();
                 }
 
-                else if (hardButton.isMouseOver(window)) 
+                else if (hardButton.isMouseOver(window))
                 {
                     hardButton.playClickSound();
                     currentDifficulty = Difficulty::Hard;
@@ -1116,38 +1124,38 @@ private:
         hardButton.setHighlight(hardButton.isMouseOver(window));
     }
 
-    void handleOptionsInput() 
+    void handleOptionsInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) 
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
             {
                 currentState = GameState::Menu;
                 return;
             }
 
-            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) 
+            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
             {
-                if (helpButton.isMouseOver(window)) 
+                if (helpButton.isMouseOver(window))
                 {
                     helpButton.playClickSound();
                     currentState = GameState::Help;
                 }
 
-                else if (settingsButton.isMouseOver(window)) 
+                else if (settingsButton.isMouseOver(window))
                 {
                     settingsButton.playClickSound();
                     currentState = GameState::Settings;
                 }
 
-                else if (backButton.isMouseOver(window)) 
+                else if (backButton.isMouseOver(window))
                 {
                     backButton.playClickSound();
                     currentState = GameState::Menu;
@@ -1160,12 +1168,12 @@ private:
         backButton.setHighlight(backButton.isMouseOver(window));
     }
 
-    void handleHelpInput() 
+    void handleHelpInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
@@ -1173,7 +1181,7 @@ private:
 
             if ((event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) ||
                 (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left &&
-                    backButton.isMouseOver(window))) 
+                    backButton.isMouseOver(window)))
             {
                 backButton.playClickSound();
                 currentState = GameState::Options;
@@ -1184,12 +1192,12 @@ private:
         backButton.setHighlight(backButton.isMouseOver(window));
     }
 
-    void handleSettingsInput() 
+    void handleSettingsInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
@@ -1197,7 +1205,7 @@ private:
 
             if ((event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) ||
                 (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left &&
-                    backButton.isMouseOver(window))) 
+                    backButton.isMouseOver(window)))
             {
                 backButton.playClickSound();
                 currentState = GameState::Options;
@@ -1208,12 +1216,12 @@ private:
         backButton.setHighlight(backButton.isMouseOver(window));
     }
 
-    void handleCreditsInput() 
+    void handleCreditsInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
@@ -1221,7 +1229,7 @@ private:
 
             if ((event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) ||
                 (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left &&
-                    backButton.isMouseOver(window))) 
+                    backButton.isMouseOver(window)))
             {
                 backButton.playClickSound();
                 currentState = GameState::Menu;
@@ -1232,12 +1240,12 @@ private:
         backButton.setHighlight(backButton.isMouseOver(window));
     }
 
-    void handleHighScoresInput() 
+    void handleHighScoresInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
@@ -1245,7 +1253,7 @@ private:
 
             if ((event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) ||
                 (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left &&
-                    backButton.isMouseOver(window))) 
+                    backButton.isMouseOver(window)))
             {
                 backButton.playClickSound();
                 currentState = GameState::Menu;
@@ -1256,18 +1264,18 @@ private:
         backButton.setHighlight(backButton.isMouseOver(window));
     }
 
-    void handleGameInput() 
+    void handleGameInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) 
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
             {
                 currentState = GameState::Paused;
                 engineSound.pause();
@@ -1275,10 +1283,10 @@ private:
                 return;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space && !gameStarted) 
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space && !gameStarted)
             {
                 gameStarted = true;
-                if (engineSound.getStatus() != sf::Sound::Playing) 
+                if (engineSound.getStatus() != sf::Sound::Playing)
                 {
                     engineSound.play();
                 }
@@ -1286,18 +1294,18 @@ private:
         }
     }
 
-    void handlePauseInput() 
+    void handlePauseInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) 
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
             {
                 currentState = GameState::Playing;
                 engineSound.play();
@@ -1305,9 +1313,9 @@ private:
                 return;
             }
 
-            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) 
+            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
             {
-                if (resumeButton.isMouseOver(window)) 
+                if (resumeButton.isMouseOver(window))
                 {
                     resumeButton.playClickSound();
                     currentState = GameState::Playing;
@@ -1315,7 +1323,7 @@ private:
                     gameMusic.play();
                 }
 
-                else if (pauseQuitButton.isMouseOver(window)) 
+                else if (pauseQuitButton.isMouseOver(window))
                 {
                     pauseQuitButton.playClickSound();
                     endGame();
@@ -1327,26 +1335,26 @@ private:
         pauseQuitButton.setHighlight(pauseQuitButton.isMouseOver(window));
     }
 
-    void handleGameOverInput() 
+    void handleGameOverInput()
     {
         sf::Event event;
-        while (window.pollEvent(event)) 
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) 
+            if (event.type == sf::Event::Closed)
             {
                 window.close();
                 return;
             }
 
-            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) 
+            if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
             {
-                if (restartButton.isMouseOver(window)) 
+                if (restartButton.isMouseOver(window))
                 {
                     restartButton.playClickSound();
                     startGame();
                 }
 
-                else if (gameOverBackButton.isMouseOver(window)) 
+                else if (gameOverBackButton.isMouseOver(window))
                 {
                     gameOverBackButton.playClickSound();
                     endGame();
@@ -1358,7 +1366,7 @@ private:
         gameOverBackButton.setHighlight(gameOverBackButton.isMouseOver(window));
     }
 
-    void startGame() 
+    void startGame()
     {
         currentState = GameState::Playing;
         gameStarted = false;
@@ -1378,7 +1386,7 @@ private:
 
         helicopter.setPosition(Constants::WINDOW_WIDTH / 4.0f, Constants::WINDOW_HEIGHT / 2.0f);
 
-        for (int i = 0; i < 2; ++i) 
+        for (int i = 0; i < 2; ++i)
         {
             bgSprites[i].setPosition(i * static_cast<float>(Constants::WINDOW_WIDTH), 0.f);
         }
@@ -1387,13 +1395,13 @@ private:
         engineSound.stop();
         crashSound.stop();
 
-        if (gameMusic.getStatus() != sf::Music::Playing) 
+        if (gameMusic.getStatus() != sf::Music::Playing)
         {
             gameMusic.play();
         }
     }
 
-    void endGame() 
+    void endGame()
     {
         currentState = GameState::Menu;
         gameStarted = false;
@@ -1404,7 +1412,7 @@ private:
         bgMusic.play();
     }
 
-    void gameOverState() 
+    void gameOverState()
     {
         addHighScore(playerName, score, currentDifficulty);
         currentState = GameState::GameOver;
@@ -1413,7 +1421,7 @@ private:
         crashSound.play();
     }
 
-    void updateGame(float deltaTime) 
+    void updateGame(float deltaTime)
     {
         if (!gameStarted || gameOver) return;
 
@@ -1422,22 +1430,22 @@ private:
         updateFuelBottles(deltaTime);
 
         obstacleSpawnTimer += deltaTime;
-        if (obstacleSpawnTimer >= currentObstacleSpawnRate) 
+        if (obstacleSpawnTimer >= currentObstacleSpawnRate)
         {
             spawnObstacle();
             obstacleSpawnTimer = 0.f;
         }
 
-        if (!isLanded) 
+        if (!isLanded)
         {
-            for (auto& coin : coins) 
+            for (auto& coin : coins)
             {
                 sf::Vector2f pos = coin.getSprite().getPosition();
                 pos.x -= currentScrollSpeed * deltaTime;
                 coin.getSprite().setPosition(pos);
             }
 
-            for (auto& bottle : fuelBottles) 
+            for (auto& bottle : fuelBottles)
             {
                 sf::Vector2f pos = bottle.getSprite().getPosition();
                 pos.x -= currentScrollSpeed * deltaTime;
@@ -1447,7 +1455,7 @@ private:
 
         sf::Vector2f movement(0.f, 0.f);
 
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) 
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
         {
             movement.y -= currentMoveSpeed;
         }
@@ -1467,11 +1475,11 @@ private:
 
         helicopter.setPosition(position);
 
-        for (auto& obstacle : obstacles) 
+        for (auto& obstacle : obstacles)
         {
             obstacle.update(deltaTime, isLanded, currentScrollSpeed);
 
-            if (obstacle.isActive() && helicopter.getGlobalBounds().intersects(obstacle.getBounds())) 
+            if (obstacle.isActive() && helicopter.getGlobalBounds().intersects(obstacle.getBounds()))
             {
                 gameOver = true;
                 gameOverState();
@@ -1483,7 +1491,7 @@ private:
             [](const Obstacle& o) { return !o.isActive(); }),
             obstacles.end());
 
-        if (!isLanded) 
+        if (!isLanded)
         {
             for (auto& bg : bgSprites) bg.move(-currentScrollSpeed * deltaTime, 0.f);
 
@@ -1495,7 +1503,7 @@ private:
         }
     }
 
-    void renderMenu() 
+    void renderMenu()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1513,7 +1521,7 @@ private:
         window.display();
     }
 
-    void renderNameInput() 
+    void renderNameInput()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1531,9 +1539,9 @@ private:
 
         nameSubmitButton.draw(window);
 
-        if (nameSubmitButton.isMouseOver(window) && sf::Mouse::isButtonPressed(sf::Mouse::Left)) 
+        if (nameSubmitButton.isMouseOver(window) && sf::Mouse::isButtonPressed(sf::Mouse::Left))
         {
-            if (playerName.length() < 3) 
+            if (playerName.length() < 3)
             {
                 sf::Text error("Name must be at least 3 characters!", font, 24);
                 error.setFillColor(sf::Color::Red);
@@ -1545,7 +1553,7 @@ private:
         window.display();
     }
 
-    void renderDifficultySelect() 
+    void renderDifficultySelect()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1566,7 +1574,7 @@ private:
         window.display();
     }
 
-    void renderOptions() 
+    void renderOptions()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1586,7 +1594,7 @@ private:
         window.display();
     }
 
-    void renderHelp() 
+    void renderHelp()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1616,7 +1624,7 @@ private:
         window.display();
     }
 
-    void renderSettings() 
+    void renderSettings()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1646,7 +1654,7 @@ private:
         window.display();
     }
 
-    void renderCredits() 
+    void renderCredits()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1669,7 +1677,7 @@ private:
         window.display();
     }
 
-    void renderHighScores() 
+    void renderHighScores()
     {
         window.clear();
         window.draw(menuBackground);
@@ -1707,12 +1715,12 @@ private:
         // Display top 7 scores
         int entriesToShow = std::min(7, static_cast<int>(highScores.size()));
 
-        for (int i = 0; i < entriesToShow; ++i) 
+        for (int i = 0; i < entriesToShow; ++i)
         {
             const auto& entry = highScores[i];
             std::string difficultyStr;
 
-            switch (entry.difficulty) 
+            switch (entry.difficulty)
             {
             case Difficulty::Easy: difficultyStr = "Easy"; break;
             case Difficulty::Medium: difficultyStr = "Medium"; break;
@@ -1748,11 +1756,11 @@ private:
         window.display();
     }
 
-    void renderGame() 
+    void renderGame()
     {
         window.clear();
 
-        if (gameStarted) 
+        if (gameStarted)
         {
             for (const auto& bg : bgSprites) window.draw(bg);
             for (const auto& coin : coins) coin.draw(window);
@@ -1775,7 +1783,7 @@ private:
             window.draw(fuelText);
         }
 
-        else 
+        else
         {
             window.draw(bgSprites[0]);
             sf::RectangleShape overlay(sf::Vector2f(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT));
@@ -1801,7 +1809,7 @@ private:
         window.display();
     }
 
-    void renderPause() 
+    void renderPause()
     {
         window.clear();
 
@@ -1828,7 +1836,7 @@ private:
         window.display();
     }
 
-    void renderGameOver() 
+    void renderGameOver()
     {
         window.clear();
 
@@ -1870,6 +1878,7 @@ public:
     HelicopterGame() : window(sf::VideoMode(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT), "Helicopter Game", sf::Style::Default),
         currentState(GameState::Menu),
         currentDifficulty(Difficulty::Medium),
+        resourcesLoaded(false),
         nameSubmitButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)),
         playButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)),
         optionsButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)),
@@ -1885,18 +1894,19 @@ public:
         easyButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)),
         mediumButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)),
         hardButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)),
-        highScoresButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0)) {
+        highScoresButton("", font, 0, sf::Color::White, sf::Color::White, sf::Vector2f(0, 0), sf::Vector2f(0, 0))
+    {
         window.setFramerateLimit(60);
         loadResources();
     }
 
-    void run() 
+    void run()
     {
-        while (window.isOpen()) 
+        while (window.isOpen())
         {
             float deltaTime = gameClock.restart().asSeconds();
 
-            switch (currentState) 
+            switch (currentState)
             {
             case GameState::Menu:
                 handleMenuInput();
@@ -1948,19 +1958,17 @@ public:
     }
 };
 
-int main() 
+int main()
 {
-    try 
+    try
     {
         HelicopterGame game;
         game.run();
     }
-
-    catch (const std::exception& e) 
+    catch (const std::exception& e)
     {
         std::cerr << "FATAL ERROR: " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
-
     return EXIT_SUCCESS;
 }
